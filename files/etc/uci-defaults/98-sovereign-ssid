@@ -1,0 +1,16 @@
+#!/bin/sh
+SSID='Sovereign Space'; PASS='ownyourspace'
+i=0; changed=0
+while uci -q get wireless.@wifi-iface[$i] >/dev/null; do
+  mode="$(uci -q get wireless.@wifi-iface[$i].mode)"
+  if [ "$mode" = "ap" ]; then
+    uci set wireless.@wifi-iface[$i].ssid="$SSID"
+    uci set wireless.@wifi-iface[$i].encryption='sae-mixed'
+    uci set wireless.@wifi-iface[$i].key="$PASS"
+    uci set wireless.@wifi-iface[$i].ieee80211w='1'
+    changed=1
+  fi
+  i=$((i+1))
+done
+[ "$changed" = "1" ] && uci commit wireless
+exit 0

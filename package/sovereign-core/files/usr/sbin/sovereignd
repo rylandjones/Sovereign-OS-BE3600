@@ -1,0 +1,25 @@
+#!/bin/sh
+SERVICE_OBJ="sovereign"
+register(){ cat <<'EOF' | ubus -S -t 5 add "$SERVICE_OBJ"
+{ "txpower": { "auto":{"enabled":"bool"} },
+  "sound": { "toggle":{"enabled":"bool","volume":"int"} },
+  "wellness": { "night":{"enabled":"bool"} }
+}
+EOF
+}
+register
+ubus listen "$SERVICE_OBJ" | while read -r line; do
+  method=$(echo "$line" | jsonfilter -e '@.method')
+  params=$(echo "$line" | jsonfilter -e '@.params')
+  case "$method" in
+    txpower.auto)
+      en=$(echo "$params" | jsonfilter -e '@.enabled'); uci set sovereign.radio.auto_txpower="$en"; uci commit sovereign; /usr/sbin/txpower-auto.sh restart &; echo '{"ok":true}';;
+    sound.toggle)
+      en=$(echo "$params" | jsonfilter -e '@.enabled'); vol=$(echo "$params" | jsonfilter -e '@.volume')
+      [ -n "$en" ] && uci set sovereign.system.sound_enabled="$en"
+      [ -n "$vol" ] && uci set sovereign.system.sound_volume="$vol"
+      uci commit sovereign; echo '{"ok":true}';;
+    wellness.night)
+      en=$(echo "$params" | jsonfilter -e '@.enabled'); /usr/sbin/wellness-night-mode.sh "$en"; echo '{"ok":true}';;
+  esac
+done

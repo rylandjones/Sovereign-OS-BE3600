@@ -1,0 +1,5 @@
+#!/bin/sh
+for s in sovereign-meshd sovereign-secmon sovereign-paird sovereign-loggerd; do
+  /etc/init.d/$s enable 2>/dev/null
+done
+exit 0

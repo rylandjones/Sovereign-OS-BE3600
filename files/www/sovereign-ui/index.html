@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sovereign OS</title><link rel="stylesheet" href="/sovereign-ui/style.css"></head><body>
+<header><img src="/branding/logo.svg" onerror="this.src='/branding/logo.png'"/>
+<nav><button id="homeBtn" class="active">Home</button><button id="proBtn">Pro</button><button id="emfBtn">EMF</button></nav>
+<div class="spacer"></div><div class="sound" title="Sovereign Sound" aria-label="Sovereign Sound"><label class="switch"><input type="checkbox" id="soundToggle" checked><span class="slider"></span></label></div></header>
+<main>
+<section id="home" class="view active"><div class="card"><h2>Network</h2>
+<div class="row"><span>SSID</span><strong>Sovereign Space</strong></div>
+<div class="row"><span>Internet</span><strong id="wanStatus">checking…</strong></div>
+<div class="row"><span>Clients</span><strong id="clients">0</strong></div>
+<button id="wellness">Toggle Wellness Mode</button>
+<canvas id="spark" height="80"></canvas></div></section>
+<section id="pro" class="view"><div class="split">
+<div class="card"><h2>TX Power</h2><canvas id="txChart" height="160"></canvas></div>
+<div class="card"><h2>Mesh KPIs</h2><div id="meshKPIs">Loading…</div></div></div>
+<div class="card"><h2>Devices</h2><div id="devList">Loading…</div></div></section>
+<section id="emf" class="view"><div class="card"><h2>EMF Timeline</h2>
+<div class="controls"><select id="range"><option value="1d">24 hours</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="180d">6 months</option><option value="365d" selected>1 year</option></select>
+<select id="mode"><option value="dbm" selected>dBm</option><option value="mw">mW/m²</option></select>
+<button id="export">Export CSV</button></div>
+<canvas id="emfChart" height="220"></canvas></div></section></main>
+<script src="/sovereign-ui/app.js"></script></body></html>

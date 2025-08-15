@@ -1,0 +1,14 @@
+config system 'system'
+    option role 'main'
+    option version '0.2.2'
+    option color_primary '#e9fffb'
+    option color_accent '#2cc3b5'
+    option sound_enabled '1'
+    option sound_volume '30'
+
+config pair 'pair'
+    option code ''
+
+config radio 'radio'
+    option auto_txpower '1'
+    list tx_overrides ''

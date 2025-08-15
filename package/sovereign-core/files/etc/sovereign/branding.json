@@ -1,0 +1,10 @@
+{
+  "name": "Sovereign OS",
+  "boot_pulse": true,
+  "ui_resolution": "1280x340",
+  "theme": {
+    "bg": "#0b0f10",
+    "primary": "#e9fffb",
+    "accent": "#2cc3b5"
+  }
+}

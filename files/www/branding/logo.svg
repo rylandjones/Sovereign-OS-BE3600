@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340">
+  <rect width="1280" height="340" fill="#0b0f10"/>
+  <g transform="translate(80,30)" fill="none" stroke="#2cc3b5" stroke-width="6" stroke-linecap="round">
+    <path d="M40,140 c0,-70 100,-70 100,0 c0,70 -100,70 -100,0"/>
+    <path d="M180,40 L180,220"/>
+    <path d="M240,60 L320,60 M280,60 L280,220 M240,220 L320,220"/>
+    <path d="M380,60 L460,60 L420,220 L500,220"/>
+    <path d="M580,40 C660,40 660,220 580,220 C500,220 500,40 580,40"/>
+  </g>
+  <text x="640" y="315" font-family="system-ui, -apple-system, Arial" font-size="34" text-anchor="middle" fill="#e9fffb">Sovereign Space</text>
+</svg>
