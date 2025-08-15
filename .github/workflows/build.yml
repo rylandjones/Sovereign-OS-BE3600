@@ -1,4 +1,4 @@
-name: Build Sovereign OS (GL-BE3600)
+name: Build Sovereign OS (GL-BE3600) — ImageBuilder
 on: { workflow_dispatch: {} }
 
 jobs:
@@ -7,61 +7,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install deps
+      - name: Install minimal deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-            gettext git libncurses5-dev libssl-dev python3 rsync unzip zlib1g-dev file wget jq
+          sudo apt-get install -y rsync xz-utils ca-certificates
 
-      - name: Clone OpenWrt 23.05.3
+      - name: Download OpenWrt ImageBuilder (23.05.3 ipq807x/generic)
         run: |
-          git clone https://git.openwrt.org/openwrt/openwrt.git
-          cd openwrt
-          git checkout v23.05.3
+          IB_URL="https://downloads.openwrt.org/releases/23.05.3/targets/ipq807x/generic/openwrt-imagebuilder-23.05.3-ipq807x-generic.Linux-x86_64.tar.xz"
+          wget -qO ib.tar.xz "$IB_URL"
+          tar -xf ib.tar.xz
+          mv openwrt-imagebuilder-23.05.3-ipq807x-generic.Linux-x86_64 ib
 
-      - name: Inject Sovereign OS tree
+      - name: Prepare overlay with Sovereign files
         run: |
-          rsync -a --exclude '.github' ./ openwrt/
+          set -e
+          mkdir -p ib/overlay
 
-      - name: Use pinned feeds + cache downloads
+          # 1) Copy our rootfs files (UCI defaults, web UI, branding)
+          # Avoid copying the example .config into root: only etc + www
+          [ -d files/etc ] && rsync -a files/etc/ ib/overlay/etc/
+          [ -d files/www ] && rsync -a files/www/ ib/overlay/www/
+
+          # 2) Place Sovereign sounds where the scripts expect them
+          if [ -d files/sounds ]; then
+            mkdir -p ib/overlay/usr/share/sovereign/sounds
+            rsync -a files/sounds/ ib/overlay/usr/share/sovereign/sounds/
+          fi
+
+          # 3) Copy the core scripts/configs from our package tree
+          if [ -d package/sovereign-core/files ]; then
+            rsync -a package/sovereign-core/files/etc/ ib/overlay/etc/
+            rsync -a package/sovereign-core/files/usr/ ib/overlay/usr/
+          fi
+
+          # 4) Copy the LuCI app straight into rootfs
+          if [ -d package/luci-app-sovereign/root ]; then
+            rsync -a package/luci-app-sovereign/root/ ib/overlay/
+          fi
+
+          # 5) Make sure init scripts & uci-defaults are executable
+          find ib/overlay/etc/init.d -type f -print0 2>/dev/null | xargs -0 -I{} chmod +x {}
+          find ib/overlay/etc/uci-defaults -type f -print0 2>/dev/null | xargs -0 -I{} chmod +x {}
+          find ib/overlay/usr/sbin -type f -print0 2>/dev/null | xargs -0 -I{} chmod +x {}
+
+      - name: Build firmware with ImageBuilder
         run: |
-          cd openwrt
-          cp ./feeds.conf ./feeds.conf.bak 2>/dev/null || true
-          mv ../feeds.conf ./feeds.conf
-      - name: Cache OpenWrt downloads
-        uses: actions/cache@v3
-        with:
-          path: openwrt/dl
-          key: dl-${{ runner.os }}-${{ hashFiles('feeds.conf') }}
-          restore-keys: |
-            dl-${{ runner.os }}-
+          set -e
+          cd ib
+          # Packages to include (keep it lean but functional)
+          PKGS="luci luci-ssl luci-compat luci-lib-jsonc uhttpd rpcd uci \
+                iwinfo iw curl coreutils jq avahi-daemon alsa-utils kmod-usb-audio \
+                htop iperf3 usbutils ca-bundle ca-certificates wpad-openssl"
+          make image PROFILE="glinet_gl-be3600" PACKAGES="$PKGS" FILES="overlay/"
 
-      - name: Update feeds (pinned) and install only needed packages
-        run: |
-          cd openwrt
-          ./scripts/feeds update -a
-          ./scripts/feeds install \
-            luci luci-ssl luci-compat luci-lib-jsonc \
-            uhttpd rpcd uci \
-            iwinfo iw curl coreutils jq avahi-daemon alsa-utils htop iperf3 usbutils \
-            ca-bundle ca-certificates
-
-      - name: Defconfig
-        run: |
-          cd openwrt
-          cp ./files/sovereign_config_examples/.config .config
-          make defconfig
-
-      - name: Build firmware
-        run: |
-          cd openwrt
-          make download -j8
-          make -j"$(nproc)" V=s
-
-      - name: Upload artifacts
+      - name: Upload sysupgrade image
         uses: actions/upload-artifact@v4
         with:
           name: sovereign-os-be3600-firmware
-          path: |
-            openwrt/bin/targets/*/*/openwrt-*.bin
-            openwrt/bin/packages/**
+          path: ib/bin/targets/*/*/*sysupgrade.bin
