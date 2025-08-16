@@ -1,79 +1,38 @@
-name: Build Sovereign OS (GL-BE3600) — ImageBuilder (safe)
-
+name: Package Sovereign Overlay (GL-BE3600 stock firmware)
 on: { workflow_dispatch: {} }
 
 jobs:
-  build:
+  pack:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install minimal deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync xz-utils ca-certificates wget
-
-      - name: Download OpenWrt ImageBuilder (23.05.3 ipq807x/generic)
+      - name: Create rootfs overlay
         run: |
           set -e
-          IB_URL="https://downloads.openwrt.org/releases/23.05.3/targets/ipq807x/generic/openwrt-imagebuilder-23.05.3-ipq807x-generic.Linux-x86_64.tar.xz"
-          echo "Fetching: $IB_URL"
-          wget -qO ib.tar.xz "$IB_URL"
-          tar -xf ib.tar.xz
-          mv openwrt-imagebuilder-23.05.3-ipq807x-generic.Linux-x86_64 ib
-
-      - name: Verify target profile exists
-        run: |
-          set -e
-          cd ib
-          make info | tee /tmp/ib.info
-          echo "Checking for profile glinet_gl-be3600 ..."
-          grep -q 'glinet_gl-be3600' /tmp/ib.info || { echo "Profile glinet_gl-be3600 not found in this ImageBuilder."; exit 1; }
-
-      - name: Prepare overlay (Sovereign files)
-        run: |
-          set -e
-          mkdir -p ib/overlay
-          # Copy our rootfs additions if present
-          [ -d files/etc ] && rsync -a files/etc/ ib/overlay/etc/
-          [ -d files/www ] && rsync -a files/www/ ib/overlay/www/
-          # Pull in scripts/configs shipped under package/sovereign-core
+          mkdir -p overlay
+          [ -d files/etc ] && rsync -a files/etc/ overlay/etc/
+          [ -d files/www ] && rsync -a files/www/ overlay/www/
           if [ -d package/sovereign-core/files ]; then
-            rsync -a package/sovereign-core/files/etc/ ib/overlay/etc/ 2>/dev/null || true
-            rsync -a package/sovereign-core/files/usr/ ib/overlay/usr/ 2>/dev/null || true
+            rsync -a package/sovereign-core/files/etc/ overlay/etc/ 2>/dev/null || true
+            rsync -a package/sovereign-core/files/usr/ overlay/usr/ 2>/dev/null || true
           fi
-          # LuCI app direct into rootfs
           if [ -d package/luci-app-sovereign/root ]; then
-            rsync -a package/luci-app-sovereign/root/ ib/overlay/
+            rsync -a package/luci-app-sovereign/root/ overlay/
           fi
-          # Ensure executables
-          find ib/overlay/etc/init.d -type f -print0 2>/dev/null | xargs -0 -I{} chmod +x {}
-          find ib/overlay/etc/uci-defaults -type f -print0 2>/dev/null | xargs -0 -I{} chmod +x {}
-          find ib/overlay/usr/sbin -type f -print0 2>/dev/null | xargs -0 -I{} chmod +x {}
-          echo "--- Overlay contents ---"
-          find ib/overlay -type f | sort || true
+          find overlay/etc/init.d -type f -print0 2>/dev/null | xargs -0 chmod +x || true
+          find overlay/etc/uci-defaults -type f -print0 2>/dev/null | xargs -0 chmod +x || true
+          find overlay/usr/sbin -type f -print0 2>/dev/null | xargs -0 chmod +x || true
+          tar -C overlay -czf sovereign-overlay.tar.gz .
 
-      - name: Build firmware (minimal, robust package set)
+      - name: Bundle installer + overlay
         run: |
-          set -e
-          cd ib
-          # Keep it lean to avoid unavailable deps; we add extras later if needed.
-          PKGS="luci luci-ssl uhttpd rpcd uci iwinfo iw wpad-openssl ca-bundle ca-certificates coreutils uclient-fetch"
-          make image PROFILE="glinet_gl-be3600" PACKAGES="$PKGS" FILES="overlay/"
+          mkdir out
+          cp scripts/install.sh out/
+          cp sovereign-overlay.tar.gz out/
 
-      - name: Upload sysupgrade image
+      - name: Upload overlay installer
         uses: actions/upload-artifact@v4
         with:
-          name: sovereign-os-be3600-firmware
-          path: ib/bin/targets/*/*/*sysupgrade.bin
-
-      - name: Upload logs (always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sovereign-build-logs
-          path: |
-            ib/.config
-            ib/logs/**/*
-            **/*.log
-          if-no-files-found: ignore
+          name: sovereign-os-be3600-overlay
+          path: out/*
