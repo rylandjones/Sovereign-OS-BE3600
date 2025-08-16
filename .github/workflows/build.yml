@@ -20,16 +20,18 @@ jobs:
           if [ -d package/luci-app-sovereign/root ]; then
             rsync -a package/luci-app-sovereign/root/ overlay/
           fi
+          # Make init/defaults executable if present
           find overlay/etc/init.d -type f -print0 2>/dev/null | xargs -0 chmod +x || true
           find overlay/etc/uci-defaults -type f -print0 2>/dev/null | xargs -0 chmod +x || true
           find overlay/usr/sbin -type f -print0 2>/dev/null | xargs -0 chmod +x || true
           tar -C overlay -czf sovereign-overlay.tar.gz .
 
-      - name: Bundle installer + overlay
+      - name: Bundle installer + overlay + checksums
         run: |
           mkdir out
           cp scripts/install.sh out/
           cp sovereign-overlay.tar.gz out/
+          (cd out && shasum -a 256 * > SHA256SUMS.txt)
 
       - name: Upload overlay installer
         uses: actions/upload-artifact@v4
